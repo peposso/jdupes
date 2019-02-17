@@ -87,6 +87,13 @@ ifneq (,$(findstring DENABLE_BTRFS,$(CFLAGS_EXTRA)))
 	ENABLE_BTRFS=1
 endif
 
+ifneq (,$(findstring DENABLE_APFS,$(CFLAGS)))
+	ENABLE_APFS=1
+endif
+ifneq (,$(findstring DENABLE_APFS,$(CFLAGS_EXTRA)))
+	ENABLE_APFS=1
+endif
+
 # MinGW needs this for printf() conversions to work
 ifeq ($(OS), Windows_NT)
 ifndef NO_UNICODE
@@ -105,6 +112,13 @@ COMPILER_OPTIONS += -DENABLE_BTRFS
 OBJS += act_dedupefiles.o
 else
 OBJS_CLEAN += act_dedupefiles.o
+endif
+# APFS support option
+ifdef ENABLE_APFS
+COMPILER_OPTIONS += -DENABLE_APFS
+OBJS += act_clonefiles.o
+else
+OBJS_CLEAN += act_clonefiles.o
 endif
 # Low memory mode
 ifdef LOW_MEMORY

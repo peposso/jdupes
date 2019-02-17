@@ -144,6 +144,7 @@ extern uint_fast32_t flags;
 #define F_ONEFS			0x00800000U
 #define F_PRINTNULL		0x01000000U
 #define F_PARTIALONLY		0x02000000U
+#define F_CLONEFILES		0x04000000U
 
 #define F_LOUD			0x40000000U
 #define F_DEBUG			0x80000000U
@@ -205,6 +206,9 @@ typedef struct _file {
 #ifndef NO_PERMS
   uid_t uid;
   gid_t gid;
+#endif
+#ifdef ENABLE_APFS
+  time_t birthtime;
 #endif
 } file_t;
 

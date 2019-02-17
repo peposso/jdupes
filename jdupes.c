@@ -455,6 +455,9 @@ extern inline int getfilestats(file_t * const restrict file)
   file->uid = s.st_uid;
   file->gid = s.st_gid;
  #endif
+ #ifdef ENABLE_APFS
+  file->birthtime = s.st_birthtime;
+ #endif
  #ifndef NO_SYMLINKS
   if (lstat(file->d_name, &s) != 0) return -1;
   if (S_ISLNK(s.st_mode) > 0) SETFLAG(file->flags, F_IS_SYMLINK);
@@ -1481,6 +1484,9 @@ static inline void help_text(void)
 #ifdef ENABLE_BTRFS
   printf(" -B --dedupe      \tsend matches to btrfs for block-level deduplication\n");
 #endif
+#ifdef ENABLE_APFS
+  printf(" -a --clonefile   \tuse clonefile to deduplicate on apfs\n");
+#endif
   printf(" -C --chunksize=# \toverride I/O chunk size (min %d, max %d)\n", MIN_CHUNK_SIZE, MAX_CHUNK_SIZE);
   printf(" -d --delete      \tprompt user for files to preserve and delete all\n");
   printf("                  \tothers; important: under particular circumstances,\n");
@@ -1585,6 +1591,7 @@ int main(int argc, char **argv)
     { "one-file-system", 0, 0, '1' },
     { "nohidden", 0, 0, 'A' },
     { "dedupe", 0, 0, 'B' },
+    { "clonefile", 0, 0, 'a' },
     { "chunksize", 1, 0, 'C' },
     { "delete", 0, 0, 'd' },
     { "debug", 0, 0, 'D' },
@@ -1669,7 +1676,7 @@ int main(int argc, char **argv)
   oldargv = cloneargs(argc, argv);
 
   while ((opt = GETOPT(argc, argv,
-  "@01ABC:dDfhHiIlLmMnNOpP:qQrRsSTvVzZo:x:X:"
+  "@01ABaC:dDfhHiIlLmMnNOpP:qQrRsSTvVzZo:x:X:"
 #ifndef OMIT_GETOPT_LONG
           , long_options, NULL
 #endif
@@ -1754,7 +1761,7 @@ int main(int argc, char **argv)
       else if (strcmp(optarg, "fullhash") == 0) SETFLAG(p_flags, P_FULLHASH);
       else {
         fprintf(stderr, "Option '%s' is not valid for -P\n", optarg);
-	exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE);
       }
       break;
     case 'q':
@@ -1877,6 +1884,16 @@ int main(int argc, char **argv)
       SETFLAG(flags, F_DEDUPEFILES);
       /* btrfs will do the byte-for-byte check itself */
       SETFLAG(flags, F_QUICKCOMPARE);
+      /* It is completely useless to dedupe zero-length extents */
+      CLEARFLAG(flags, F_INCLUDEEMPTY);
+#else
+      fprintf(stderr, "This program was built without btrfs support\n");
+      exit(EXIT_FAILURE);
+#endif
+      break;
+    case 'a':
+#ifdef ENABLE_APFS
+      SETFLAG(flags, F_CLONEFILES);
       /* It is completely useless to dedupe zero-length extents */
       CLEARFLAG(flags, F_INCLUDEEMPTY);
 #else
@@ -2087,6 +2104,9 @@ skip_file_scan:
 #ifdef ENABLE_BTRFS
   if (ISFLAG(flags, F_DEDUPEFILES)) dedupefiles(files);
 #endif /* ENABLE_BTRFS */
+#ifdef ENABLE_APFS
+  if (ISFLAG(flags, F_CLONEFILES)) clonefiles(files);
+#endif /* ENABLE_APFS */
   if (ISFLAG(flags, F_PRINTMATCHES)) printmatches(files);
   if (ISFLAG(flags, F_SUMMARIZEMATCHES)) {
     if (ISFLAG(flags, F_PRINTMATCHES)) printf("\n\n");
